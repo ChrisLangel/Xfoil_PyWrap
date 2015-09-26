@@ -53,7 +53,7 @@ for rey in Reys:
         issueCmd('ALFA -8.0' )
         issueCmd( '!' ) 
 	# run a polar at this Rey
-        for aoa in [-10+i for i in range(20)]:
+        for aoa in [-10+(i*.5) for i in range(40)]:
         	 issueCmd( 'ALFA %7.4f' % (aoa,) ) 
                  issueCmd( 'vplo' )
                  issueCmd( 'n' ) 
@@ -68,6 +68,10 @@ for rey in Reys:
 		 issueCmd( 'CF' )
 		 time.sleep( 0.2 ) 
                  issueCmd( ''.join(['dump ',str(rey),'_A',str(aoa),'.cf']) )   
+		 time.sleep( 0.2 ) 
+		 issueCmd( 'UE' )
+		 time.sleep( 0.2 ) 
+                 issueCmd( ''.join(['dump ',str(rey),'_A',str(aoa),'.ue']) )   
 		 time.sleep( 0.2 ) 
 		 issueCmd( 'DT' )
 		 time.sleep( 0.2 ) 

@@ -4,7 +4,7 @@ import numpy as np
 from pylab import loadtxt 
 from math import log10,floor 
 
-# Script that goes through all the output files, extracts information and writes it to a single pyhton file
+# Script that goes through all the output files, extracts information and writes it to a single python file
 
 # function that searches an input directory for files with a given filter in the title
 def findFiles (path, filter):
@@ -90,6 +90,8 @@ os.write( fd,'import xclass \nfrom xclass import * \n \n' )
 path_to_dir = os.getcwd()
 coordfile   = 'n63.txt' 
 xc,yc       = loadDump( coordfile ) 
+# could get this from file but for now set here 
+machnum     = 0.2
 
 for textFile in findFiles(''.join([path_to_dir,'/N_data']), '*' ):	
 	basename = os.path.splitext(os.path.basename(textFile))[0] 
@@ -124,38 +126,49 @@ for textFile in findFiles(''.join([path_to_dir,'/N_data']), '*' ):
 	#cfu[:len(xu)],cfl[:len(xl)] 
 
         # ------ C_p --------- #
-	cpfile = ''.join([basename,'.cp'])
+	cpfile  = ''.join([basename,'.cp'])
 	cpu,cpl = cp_sort( cpfile,xu,xl ) 
- 
-        # ------ DT --------- # 
+
+	# ------ U_e --------- #
+ 	uefile  = ''.join([basename,'.ue']) 
+	ueu,uel = cp_sort( uefile,xu,xl )  
+
+        # ------ DT ---------- # 
 	topbl = ''.join([basename,'.dt']) 
 	xtb,tbl = loadDump( topbl ) 
-	a,thtu,b,dstu = splitbl( xtb,tbl ) 
+	a,dstu,b,thtu = splitbl( xtb,tbl ) 
         thtu,dstu = thtu[:len(xu)],dstu[:len(xu)] 
 	
-	# ------ DB -------- # 
+	# ------ DB ---------- # 
 	topbl = ''.join([basename,'.db']) 
 	xtb,bbl = loadDump( topbl ) 
-	a,thtl,b,dstl = splitbl( xtb,bbl ) 
+	a,dstl,b,thtl = splitbl( xtb,bbl ) 
         thtl,dstl = thtl[:len(xl)],dstl[:len(xl)]
         
 	# Create a bunch of strings to write to files
-	xu   = ''.join(['xu = '  ,str(xu),'\n'])
-	yu   = ''.join(['yu = '  ,str(yu),'\n'])
-	xl   = ''.join(['xl = '  ,str(xl),'\n'])
-	yl   = ''.join(['yl = '  ,str(yl),'\n'])
-	nu   = ''.join(['nu = '  ,str(nu),'\n'])
-	nl   = ''.join(['nl = '  ,str(nl),'\n'])
-	rtu  = ''.join(['rtu = ' ,str(rtu),'\n'])
-	rtl  = ''.join(['rtl = ' ,str(rtl),'\n'])	
-	cfu  = ''.join(['cfu = ' ,str(cfu),'\n'])
-	cfl  = ''.join(['cfl = ' ,str(cfl),'\n'])
-	cpu  = ''.join(['cpu = ' ,str(cpu),'\n'])
-	cpl  = ''.join(['cpl = ' ,str(cpl),'\n'])
+	xu   = ''.join(['xu = '  ,str(xu)  ,'\n'])
+	yu   = ''.join(['yu = '  ,str(yu)  ,'\n'])
+	xl   = ''.join(['xl = '  ,str(xl)  ,'\n'])
+	yl   = ''.join(['yl = '  ,str(yl)  ,'\n'])
+	nu   = ''.join(['nu = '  ,str(nu)  ,'\n'])
+	nl   = ''.join(['nl = '  ,str(nl)  ,'\n'])
+	ueu  = ''.join(['ueu = ' ,str(ueu) ,'\n'])
+	uel  = ''.join(['uel = ' ,str(uel) ,'\n'])
+	rtu  = ''.join(['rtu = ' ,str(rtu) ,'\n'])
+	rtl  = ''.join(['rtl = ' ,str(rtl) ,'\n'])	
+	cfu  = ''.join(['cfu = ' ,str(cfu) ,'\n'])
+	cfl  = ''.join(['cfl = ' ,str(cfl) ,'\n'])
+	cpu  = ''.join(['cpu = ' ,str(cpu) ,'\n'])
+	cpl  = ''.join(['cpl = ' ,str(cpl) ,'\n'])
 	thtu = ''.join(['thtu = ',str(thtu),'\n'])
 	thtl = ''.join(['thtl = ',str(thtl),'\n'])
 	dstu = ''.join(['dstu = ',str(dstu),'\n'])
 	dstl = ''.join(['dstl = ',str(dstl),'\n'])
+
+	mach = ''.join(['mach = ',str(machnum),'\n']) 
+	# Extract reynolds number from name (will only work for O(e^6))
+	Rnum = ''.join( list(basename)[:9] )  
+	Rey  = ''.join(['Rey = ',Rnum,'\n' ]) 
 
         # Clean up the periods and what not in the name 
         tempname = list( basename )  
@@ -165,9 +178,9 @@ for textFile in findFiles(''.join([path_to_dir,'/N_data']), '*' ):
 	tempname  = ''.join(tempname) 
 	classname = ''.join(['R',tempname,'X']) 
 
-	classtr   = ''.join([classname,'= xclass(xu,yu,xl,yl,nu,nl,rtu,rtl,cfu,cfl,cpu,cpl,thtu,thtl,dstu,dstl)', '\n \n']) 
+	classtr   = ''.join([classname,'= xclass(mach,Rey,xu,yu,xl,yl,nu,nl,ueu,uel,rtu,rtl,cfu,cfl,cpu,cpl,thtu,thtl,dstu,dstl)', '\n \n']) 
 	
-	varlist = [xu,yu,xl,yl,nu,nl,rtu,rtl,cfu,cfl,cpu,cpl,thtu,thtl,dstu,dstl]
+	varlist = [mach,Rey,xu,yu,xl,yl,nu,nl,ueu,uel,rtu,rtl,cfu,cfl,cpu,cpl,thtu,thtl,dstu,dstl]
 	for vr in varlist:
 		os.write(fd,vr) 
 	os.write(fd,classtr) 
