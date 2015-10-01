@@ -121,7 +121,8 @@ class xclass:
 	#           what surface we are on.
 	def intquant( self,xs,xe,quant,surf=0 ):
 		# initialize integrated sum
-		intval = 0.0 
+		intval = 0.0
+		stot   = 0.0
 		# Start looking for the indices we will be integrated over
 		# There are a number of different cases depending on 
 		# stagnation point location
@@ -131,12 +132,13 @@ class xclass:
 		if surf == 0: # Upper surface 
 			swdr = self.switchdir(self.xu) # see if dir switches
 			# determine indicies to integrate over
-			stind,endind = self.findind( self.xl,xs,xe,swdr )
+			stind,endind = self.findind( self.xu,xs,xe,swdr )
 			# loop over these indicies 
 			for i in range(stind,endind): # 
 				ds     = self.su[i+1] - self.su[i] 
                                 avg    = (quant[i+1] + quant[i])/2.0 
 				intval += avg*ds  
+				stot   += ds 
 
 		else:         # Lower surface
 			swdr = self.switchdir(self.xl)
@@ -145,6 +147,7 @@ class xclass:
 				ds     = self.sl[i+1] - self.sl[i] 
                                 avg    = (quant[i+1] + quant[i])/2.0 
 				intval += avg*ds  
+				stot   += ds 
 		return intval 
 	
 

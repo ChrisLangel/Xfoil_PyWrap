@@ -1,7 +1,7 @@
 import numpy as np
 # can do something fancier here to automate string generation 
 import matplotlib.pyplot as plt
-
+import os
 
 # Import all the data 
 from transdict_err import *
@@ -39,42 +39,46 @@ def near_ind( array,value ):
 # Output:
 #       quant - Some combination of input parameters f(k^+)*g(K) 
 #
-def comp_quant( k_s,K,mutnu,dstar ):
+def comp_quant( k_s,K,mutnu,thw,dcp ):
 	""" Money Function """
-	quant = [] 
-	C     = 1.0e3
-	C2    =  0.0 
+	quant  = [] 
+	C1     =  -100.0
+	C2     =  0.0
 	for i in range(len(K)):
 		kplus = mutnu[i]*k_s 
 		# do not add if we are outside thresholds 
-		if kplus < 5.0:
+		if kplus < 4.0 or K[i] > 6.0e-3:
 			quant.append( float(0.0) )
 		else:
-			quant.append( float( (np.exp(C*K[i]))*kplus**4) )  
-	return quant 
+			#quant.append( float( kplus**4*(1.0 + 0.4*dcp[i]) ) )
+			quant.append( float( (np.exp(C1*(thw[i]-C2)))*kplus**6) )  
+	return quant
 
 ############################################################
-
-
 
 # example key syntax               - '3_2_140_15_2_0'
 # example name of class from xfoil - 'R1600000_0_A5X'
 
- # OK let's just do something !!! Find N_crit based on 
-rtcrt,ncrit,alphs,dist = [],[],[],[] 
+if os.path.exists( 'cor_data.txt' ):
+	os.remove( 'cor_data.txt' )
+
+fd = os.open('cor_data.txt', os.O_RDWR|os.O_CREAT )
+
+rtcrt,ncrit,alphs,dist,labels,keys = [],[],[],[],[],[] 
 Reystr = [ '1_6','2_4','3_2' ]
 rhts   = [ '100','140' ] 
 for rstr in Reystr:
     rnum    = ''.join([list(rstr)[0],list(rstr)[2]]) 
     for rht in rhts:
 	k_s = float(rht)*1.0e-6
-        pq =[] 
+        pq,crit =[],[] 
         # automate by generating the substring on the fly 
         # subst   = '2_4_140_03_'
-        subst   = ''.join([rstr,'_',rht,'_15_' ])
+	subst   = ''.join([rstr,'_',rht,'_15_' ])
         curkeys = get_key_list( subst,transdict )
         for key in curkeys:
         	err     = False
+		#aoastr = '2_0' 
         	aoastr  = ''.join( get_str_diff( key,subst ))
         	classtr = ''.join( ['R',rnum,'00000_0_A',aoastr,'X' ] )
         	try: thisclass = globals()[ classtr ]
@@ -90,21 +94,37 @@ for rstr in Reystr:
         		K    = np.array( getattr( thisclass, 'Ku'    ) )    
         		mut  = np.array( getattr( thisclass, 'mutnu' ) )    
         		dstr = np.array( getattr( thisclass, 'dstu'  ) )    
+        		thw  = np.array( getattr( thisclass, 'Twtsu' ) )    
         		# compute the correlation function 
-	               	quant = comp_quant( k_s,K,mut,dstr )  
+	               	quant = comp_quant( k_s,K,mut,thw,Dcp ) 
+			quant2 = [] 
+			for q in quant:
+				quant2.append( q*(float(rnum)/10.0) )
         		foo   = getattr( thisclass, 'intquant' ) 
         		trans = float( transdict[key][0] ) 
         		ind   = near_ind( xu,trans )
         		ncrit.append( 1.0 - (n[-1]  -  n[ind])/n[-1] )
-        		rtcrt.append( (rt[-1] - rt[ind])/rt[-1] ) 
+        		rtcrt.append( 1.0 - (rt[-1] - rt[ind])/rt[-1] ) 
+			crit.append(  n[ind]  )  
+			#crit.append(  1.0 - (n[-1]  -  n[ind])/n[-1] )  
+			#crit.append(  1.0 - (rt[-1]  -  rt[ind])/rt[-1] )  
+        		dist.append( (foo(0.12,0.02,np.array(quant2)))**0.33  )
+        		pq.append(   (foo(0.12,0.02,np.array(quant2)))**0.33  )
+			keys.append( key ) 
         		alphs.append( aoastr )
-        		dist.append( foo(0.12,0.02,np.array(quant)) )		  
-    		pq.append( foo(0.12,0.02,np.array(quant)) )
-    		plt.plot( dist,ncrit,'*' ) 
+	leg    = ''.join([rnum,'_',rht])  		
+	labels = labels + [leg] 		
+	plt.plot( pq,crit,'*',markersize=10 ) 
 
-for i in range(len(ncrit)): 
-	print ncrit[i],rtcrt[i], alphs[i],dist[i] 
+for i in range(len( ncrit )):
+	wrtstr = ''.join([str(dist[i]),'   ',str(ncrit[i]),'   ',str(keys[i]),'\n'])
+	os.write(fd,wrtstr)
 
+plt.legend( labels )
+plt.xlabel( '$\\int \ \  k^+ \ ds$' )
+plt.ylabel( '% change in $N_{crit}$' )
+#plt.ylim( [0,1.0 ] )
+#plt.xlim( [0,2000] ) 
 plt.show() 
 print np.corrcoef( ncrit, dist ) 
 
