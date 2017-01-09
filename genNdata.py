@@ -3,7 +3,7 @@ import pylab
 import numpy as np 
 from pylab import loadtxt 
 from math import log10,floor 
-
+from xclass import *
 # Script that goes through all the output files, extracts information and writes it to a single python file
 
 # function that searches an input directory for files with a given filter in the title
@@ -11,6 +11,7 @@ def findFiles (path, filter):
 	for root, dirs, files in os.walk(path):
 		for file in fnmatch.filter(files, filter):
 			yield os.path.join(root, file)
+
 
 def round_sig(x, sig=2):
 	if x == 0.0: return 0.0
@@ -79,111 +80,133 @@ def cp_sort( cpfile,xu,xl ):
         return cpu,cpl 
 
 # ------------------------------------------------------------ #
-# Overwrite old data if necessary 
-if os.path.exists('Ndata.py'):
-	os.remove('Ndata.py')
-
-fd = os.open('NXdata.py', os.O_RDWR|os.O_CREAT )
-os.write( fd,'#!/usr/bin/python \n' ) 
-os.write( fd,'import xclass \nfrom xclass import * \n \n' ) 
-
-path_to_dir = os.getcwd()
-coordfile   = 'n63.txt' 
-xc,yc       = loadDump( coordfile ) 
-# could get this from file but for now set here 
-machnum     = 0.2
-
-for textFile in findFiles(''.join([path_to_dir,'/N_data']), '*' ):	
-	basename = os.path.splitext(os.path.basename(textFile))[0] 
-	# Read this particular file
-	x,n         = loadDump( textFile  )
-	xu,nu,xl,nl = splitfoil(  x,n,2 )
-        # initialize y-coord so we can compute curvalinear distance
-	yu,yl       = [],[]  
-	for i in range(len(xu)):
-		yu.append(yc[  find_near_ind(np.array(xc),float(xu[i])) ] )
-	for i in range(len(xl)):
-		yl.append(yc[  find_near_ind(np.array(xc),float(xl[i])) ] )
+# Will only load files that are in directory this is run in !!
+def const_class( basename,coordfile,outfile='temp',writefile=False ): 
+    xc,yc       = loadDump( coordfile ) 
+    nfile       = ''.join([basename,'.nc'])  
+    x,n         = loadDump( nfile )
+    xu,nu,xl,nl = splitfoil( x,n,2 )
+    yu,yl       = [],[]  
+    mach        = 0.2
+    for i in range(len(xu)):
+        yu.append(yc[  find_near_ind(np.array(xc),float(xu[i])) ] )
+    for i in range(len(xl)):
+        yl.append(yc[  find_near_ind(np.array(xc),float(xl[i])) ] )
 	
 	# now go through and look for the other files for the same condition
 	# have two seperate folders so the first can provide a list of unique
 	# names
 
 	# ------ Re_theta --------- # 
-	os.chdir( ''.join([path_to_dir,'/data_dump']) ) 
-	retfile = ''.join([basename,'.rt'])
-	rtu,rtl = cp_sort( retfile,xu,xl )  
+    retfile = ''.join([basename,'.rt'])
+    rtu,rtl = cp_sort( retfile,xu,xl )  
 	#xr,rt   = loadDump( retfile ) 
         #xru,rtu,xrl,rtl = splitfoil( xr,rt,2 )
 	# only save the portion of the foil with N data. 
-	rtu,rtl = rtu[:len(xu)],rtl[:len(xl)] 
+    rtu,rtl = rtu[:len(xu)],rtl[:len(xl)] 
  
         # ------ C_f --------- # 
-	cffile = ''.join([basename,'.cf'])
+    cffile = ''.join([basename,'.cf'])
 	#xf,cf   = loadDump( cffile ) 
         #xcfu,cfu,xcfl,cfl = splitfoil( xf,cf )
-	cfu,cfl = cp_sort( cffile,xu,xl )  
+    cfu,cfl = cp_sort( cffile,xu,xl )  
 	#cfu[:len(xu)],cfl[:len(xl)] 
 
         # ------ C_p --------- #
-	cpfile  = ''.join([basename,'.cp'])
-	cpu,cpl = cp_sort( cpfile,xu,xl ) 
+    cpfile  = ''.join([basename,'.cp'])
+    cpu,cpl = cp_sort( cpfile,xu,xl ) 
 
 	# ------ U_e --------- #
- 	uefile  = ''.join([basename,'.ue']) 
-	ueu,uel = cp_sort( uefile,xu,xl )  
+    uefile  = ''.join([basename,'.ue']) 
+    ueu,uel = cp_sort( uefile,xu,xl )  
 
         # ------ DT ---------- # 
-	topbl = ''.join([basename,'.dt']) 
-	xtb,tbl = loadDump( topbl ) 
-	a,dstu,b,thtu = splitbl( xtb,tbl ) 
-        thtu,dstu = thtu[:len(xu)],dstu[:len(xu)] 
+    topbl = ''.join([basename,'.dt']) 
+    xtb,tbl = loadDump( topbl ) 
+    a,dstu,b,thtu = splitbl( xtb,tbl ) 
+    thtu,dstu = thtu[:len(xu)],dstu[:len(xu)] 
 	
 	# ------ DB ---------- # 
-	topbl = ''.join([basename,'.db']) 
-	xtb,bbl = loadDump( topbl ) 
-	a,dstl,b,thtl = splitbl( xtb,bbl ) 
-        thtl,dstl = thtl[:len(xl)],dstl[:len(xl)]
+    topbl = ''.join([basename,'.db']) 
+    xtb,bbl = loadDump( topbl ) 
+    a,dstl,b,thtl = splitbl( xtb,bbl ) 
+    thtl,dstl = thtl[:len(xl)],dstl[:len(xl)]
+    if writefile == False:
+        tempname = list( basename )  
+        for i in range(len(tempname)):
+            if tempname[i] == '.' : tempname[i] = '_'
+            if tempname[i] == '-' : tempname[i] = 'n' 		
+        tempname  = ''.join(tempname) 
+        classname = ''.join(['R',tempname,'X']) 
+        Rnum = ''.join( list(basename)[:9] )  
+        Rey  = float(Rnum)
+        return xclass(mach,Rey,xu,yu,xl,yl,nu,nl,ueu,uel,rtu,rtl,cfu,cfl,cpu,cpl,thtu,thtl,dstu,dstl)
+    else:
+    	# Create a bunch of strings to write to file
+        xu   = ''.join(['xu = '  ,str(xu)  ,'\n'])
+        yu   = ''.join(['yu = '  ,str(yu)  ,'\n'])
+        xl   = ''.join(['xl = '  ,str(xl)  ,'\n'])
+        yl   = ''.join(['yl = '  ,str(yl)  ,'\n'])
+        nu   = ''.join(['nu = '  ,str(nu)  ,'\n'])
+        nl   = ''.join(['nl = '  ,str(nl)  ,'\n'])
+        ueu  = ''.join(['ueu = ' ,str(ueu) ,'\n'])
+        uel  = ''.join(['uel = ' ,str(uel) ,'\n'])
+        rtu  = ''.join(['rtu = ' ,str(rtu) ,'\n'])
+        rtl  = ''.join(['rtl = ' ,str(rtl) ,'\n'])	
+        cfu  = ''.join(['cfu = ' ,str(cfu) ,'\n'])
+        cfl  = ''.join(['cfl = ' ,str(cfl) ,'\n'])
+        cpu  = ''.join(['cpu = ' ,str(cpu) ,'\n'])
+        cpl  = ''.join(['cpl = ' ,str(cpl) ,'\n'])
+        thtu = ''.join(['thtu = ',str(thtu),'\n'])
+        thtl = ''.join(['thtl = ',str(thtl),'\n'])
+        dstu = ''.join(['dstu = ',str(dstu),'\n'])
+        dstl = ''.join(['dstl = ',str(dstl),'\n'])
+        mach = ''.join(['mach = ',str(machnum),'\n']) 
+    	
+        # Extract reynolds number from name (will only work for O(e^6))
+        Rnum = ''.join( list(basename)[:9] )  
+        Rey  = ''.join(['Rey = ',Rnum,'\n' ]) 
         
-	# Create a bunch of strings to write to files
-	xu   = ''.join(['xu = '  ,str(xu)  ,'\n'])
-	yu   = ''.join(['yu = '  ,str(yu)  ,'\n'])
-	xl   = ''.join(['xl = '  ,str(xl)  ,'\n'])
-	yl   = ''.join(['yl = '  ,str(yl)  ,'\n'])
-	nu   = ''.join(['nu = '  ,str(nu)  ,'\n'])
-	nl   = ''.join(['nl = '  ,str(nl)  ,'\n'])
-	ueu  = ''.join(['ueu = ' ,str(ueu) ,'\n'])
-	uel  = ''.join(['uel = ' ,str(uel) ,'\n'])
-	rtu  = ''.join(['rtu = ' ,str(rtu) ,'\n'])
-	rtl  = ''.join(['rtl = ' ,str(rtl) ,'\n'])	
-	cfu  = ''.join(['cfu = ' ,str(cfu) ,'\n'])
-	cfl  = ''.join(['cfl = ' ,str(cfl) ,'\n'])
-	cpu  = ''.join(['cpu = ' ,str(cpu) ,'\n'])
-	cpl  = ''.join(['cpl = ' ,str(cpl) ,'\n'])
-	thtu = ''.join(['thtu = ',str(thtu),'\n'])
-	thtl = ''.join(['thtl = ',str(thtl),'\n'])
-	dstu = ''.join(['dstu = ',str(dstu),'\n'])
-	dstl = ''.join(['dstl = ',str(dstl),'\n'])
-
-	mach = ''.join(['mach = ',str(machnum),'\n']) 
-	# Extract reynolds number from name (will only work for O(e^6))
-	Rnum = ''.join( list(basename)[:9] )  
-	Rey  = ''.join(['Rey = ',Rnum,'\n' ]) 
-
         # Clean up the periods and what not in the name 
         tempname = list( basename )  
-	for i in range(len(tempname)):
-		if tempname[i] == '.' : tempname[i] = '_'
-		if tempname[i] == '-' : tempname[i] = 'n' 		
-	tempname  = ''.join(tempname) 
-	classname = ''.join(['R',tempname,'X']) 
+        for i in range(len(tempname)):
+            if tempname[i] == '.' : tempname[i] = '_'
+            if tempname[i] == '-' : tempname[i] = 'n' 		
+        tempname  = ''.join(tempname) 
+        classname = ''.join(['R',tempname,'X']) 
+        classtr   = ''.join([classname,'= xclass(mach,Rey,xu,yu,xl,yl,nu,nl,ueu,uel,rtu,rtl,cfu,cfl,cpu,cpl,thtu,thtl,dstu,dstl)', '\n \n']) 
+        varlist = [mach,Rey,xu,yu,xl,yl,nu,nl,ueu,uel,rtu,rtl,cfu,cfl,cpu,cpl,thtu,thtl,dstu,dstl]
+        fd = os.open( outfile,os.O_RDWR|os.O_APPEND ) 
+        for vr in varlist:
+    		os.write(fd,vr) 
+        os.write(fd,classtr) 
+    
 
-	classtr   = ''.join([classname,'= xclass(mach,Rey,xu,yu,xl,yl,nu,nl,ueu,uel,rtu,rtl,cfu,cfl,cpu,cpl,thtu,thtl,dstu,dstl)', '\n \n']) 
-	
-	varlist = [mach,Rey,xu,yu,xl,yl,nu,nl,ueu,uel,rtu,rtl,cfu,cfl,cpu,cpl,thtu,thtl,dstu,dstl]
-	for vr in varlist:
-		os.write(fd,vr) 
-	os.write(fd,classtr) 
+# Overwrite old data if necessary 
+if __name__ == '__main__':
+    if os.path.exists('Ndata.py'):
+    	os.remove('Ndata.py')
+    
+    fd = os.open('NXdata.py', os.O_RDWR|os.O_CREAT )
+    os.write( fd,'#!/usr/bin/python \n' ) 
+    os.write( fd,'import xclass \nfrom xclass import * \n \n' ) 
+    
+    path_to_dir = os.getcwd()
+    coordfile   = 'n63.txt' 
+    xc,yc       = loadDump( coordfile ) 
+    # could get this from file but for now set here 
+    machnum     = 0.2
+    print path_to_dir
+    
+    # This will go through and create text file that corresponds to classes    
+    for textFile in findFiles(path_to_dir, '*.nc' ):	
+        basename = os.path.splitext(os.path.basename(textFile))[0] 
+        print basename
+        const_class( basename,coordfile,'NXdata.py', True )
+    	# Read this particular file
+     
+             
+     
 
 	
 

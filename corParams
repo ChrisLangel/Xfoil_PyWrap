@@ -1,0 +1,4 @@
+1.0   # the power we raise the reynolds number to
+0.25  # the power the intergrated sum is raised to
+-0.2338 # the slope of the linear fit line
+2.805 # the y-int of the linear fit line 

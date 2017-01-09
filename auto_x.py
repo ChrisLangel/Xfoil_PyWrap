@@ -8,7 +8,7 @@ import string
 import time
 
 # Name of coordinate file to load
-coords = 'n63.txt' 
+coords = 's814.txt' 
 
 """
 class Popen(args, bufsize=0, executable=None,

@@ -1,0 +1,2 @@
+AOA[deg] xc,ave sig_xc,for sig_xc,aft
+-4.059   0.044    0.044     0.042
